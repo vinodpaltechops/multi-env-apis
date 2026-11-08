@@ -1,0 +1,7 @@
+apiVersion: v2
+name: multi-env-api
+description: FastAPI service deployed to AKS (dev/staging/prod via values-<env>.yaml)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.30.0-0"
