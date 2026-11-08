@@ -1,0 +1,12 @@
+environment: prod
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 65
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+resources:
+  requests: {cpu: 250m, memory: 256Mi}
+  limits:   {cpu: "1",  memory: 512Mi}

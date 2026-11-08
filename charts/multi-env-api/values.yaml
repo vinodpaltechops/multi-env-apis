@@ -1,0 +1,116 @@
+# Defaults shared by every environment. Per-environment differences live in
+# values-dev.yaml / values-staging.yaml / values-prod.yaml.
+# NO SECRETS HERE: secret values come from Azure Key Vault via the CSI driver.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ""        # e.g. myacr.azurecr.io/multi-env-api  (set by the pipeline)
+  digest: ""            # e.g. sha256:...                       (set by the pipeline)
+  pullPolicy: IfNotPresent
+
+environment: local      # exposed to the app as ENVIRONMENT
+
+containerPort: 8080
+
+app:
+  db:
+    server: ""          # <server>.database.windows.net (set by the pipeline)
+    name: ""
+    auth: entra         # entra (workload identity) | sql (user/password from Key Vault)
+  extraEnv: {}          # additional NON-secret env vars
+
+workloadIdentity:
+  clientId: ""          # client id of the user-assigned managed identity (required)
+  tenantId: ""
+
+keyVault:
+  name: ""
+  tenantId: ""
+  mountPath: /mnt/secrets
+  # Key Vault objects to mount as files. Empty => no CSI volume is rendered.
+  # Example (needed when app.db.auth=sql):
+  #   - {objectName: db-user,     objectType: secret, objectAlias: db-user}
+  #   - {objectName: db-password, objectType: secret, objectAlias: db-password}
+  objects: []
+
+replicaCount: 2         # used only when autoscaling.enabled=false
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+strategy:
+  maxUnavailable: 0
+  maxSurge: 25%
+
+# Zero-downtime shutdown budget:
+#   preStop sleep (endpoint removal propagates to AGC) + uvicorn graceful drain (25s, see Dockerfile)
+#   must be < terminationGracePeriodSeconds.
+lifecycle:
+  preStopSleepSeconds: 15
+terminationGracePeriodSeconds: 45
+
+probes:
+  startup:   {path: /healthz, periodSeconds: 2,  failureThreshold: 30}
+  readiness: {path: /readyz,  periodSeconds: 5,  failureThreshold: 3, timeoutSeconds: 4}
+  liveness:  {path: /healthz, periodSeconds: 10, failureThreshold: 3, timeoutSeconds: 2}
+
+resources:
+  requests: {cpu: 100m, memory: 192Mi}
+  limits:   {cpu: 500m, memory: 384Mi}
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+topologySpread:
+  enabled: true
+  maxSkew: 1
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile: {type: RuntimeDefault}
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  capabilities: {drop: [ALL]}
+  seccompProfile: {type: RuntimeDefault}
+
+service:
+  type: ClusterIP
+  port: 80
+
+networkPolicy:
+  enabled: true
+  # CIDR of the Application Gateway for Containers subnet (traffic source). Required when enabled.
+  ingressCidrs: []
+  # Egress to Azure SQL (1433) and Entra ID / Azure APIs (443). Private endpoints: narrow these.
+  egressCidrs: ["0.0.0.0/0"]
+
+# Application Gateway for Containers via Gateway API
+gateway:
+  enabled: true
+  className: azure-alb-external
+  albId: ""             # full resource ID of the Application Load Balancer (required)
+  frontendName: ""      # AGC frontend name (required)
+  hostname: ""          # e.g. api-dev.example.com
+  tls:
+    secretName: ""      # TLS secret in this namespace; empty => HTTP listener only
+  healthCheck:
+    path: /readyz
+    interval: 5s
+    timeout: 3s
+
+migrations:
+  enabled: true         # pre-install/pre-upgrade hook Job running `alembic upgrade head`
+  activeDeadlineSeconds: 540
+  backoffLimit: 0
