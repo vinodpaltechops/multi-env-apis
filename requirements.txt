@@ -1,6 +1,6 @@
 fastapi==0.162.0
 uvicorn==0.54.0
-pyodbc==5.3.0
+pyodbc==5.4.0
 sqlalchemy==2.1.8
 alembic==1.20.1
 pydantic-settings==2.16.2
