@@ -4,7 +4,7 @@
 # Distroless is not used: pyodbc needs the Microsoft ODBC driver (msodbcsql18),
 # which requires a glibc/apt-based image.
 # ---- builder: compile wheels (needs gcc + unixodbc-dev for pyodbc) ----
-FROM python:3.12-slim-bookworm@sha256:da54eb86849fe19be7584d8b3f291fcf0c53c196760ab3d70dc6382f681ef9c0 AS builder
+FROM python:3.15-slim-bookworm@sha256:96599df822d0e1c6bb700014a05c7f3c8cabc6e0f7ff3c4f9f69cee033b4b5d9 AS builder
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential unixodbc-dev \
@@ -15,7 +15,7 @@ RUN python -m venv /opt/venv \
 
 # ---- runtime ----
 # checkov:skip=CKV_DOCKER_2: no HEALTHCHECK; Kubernetes startup/readiness/liveness probes are used instead
-FROM python:3.12-slim-bookworm@sha256:da54eb86849fe19be7584d8b3f291fcf0c53c196760ab3d70dc6382f681ef9c0 AS runtime
+FROM python:3.15-slim-bookworm@sha256:96599df822d0e1c6bb700014a05c7f3c8cabc6e0f7ff3c4f9f69cee033b4b5d9 AS runtime
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
